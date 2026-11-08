@@ -1,8 +1,7 @@
 # webmcp-skill
 
 **An agent skill that teaches your coding agent how to make a website agent-ready with
-[WebMCP](https://github.com/webmachinelearning/webmcp)** (`navigator.modelContext` /
-`document.modelContext`) — distilled from a production ERP that real agents
+[WebMCP](https://github.com/webmachinelearning/webmcp)** (`document.modelContext`) — distilled from a production ERP that real agents
 (ChatGPT's built-in browser) drive on a live site.
 
 [繁體中文說明 →](./README.zh-TW.md)
@@ -10,11 +9,12 @@
 ## What you get
 
 - **[`skills/webmcp-integration/SKILL.md`](./skills/webmcp-integration/SKILL.md)** — the playbook:
-  - API quick reference *as it actually behaves* in late 2026 (both entry points, AbortSignal
-    unregistration, declarative forms, cross-origin)
-  - **Six browser traps we hit for real** — e.g. the browser does *not* validate arguments
-    against your `inputSchema`; Chrome 151 has no `unregisterTool`; ChatGPT and Chrome expose
-    *different* entry points
+  - API quick reference tracking the WebMCP CG draft of 2026-11-02 (async `registerTool`,
+    AbortSignal-only unregistration, the spec's annotation set incl. `consequentialHint`,
+    cross-origin two-sided opt-in) and what was removed from the spec
+  - **Eight browser traps** — e.g. the browser does *not* validate arguments against your
+    `inputSchema`; `registerTool` can reject asynchronously; there is no `unregisterTool`;
+    `execute` gets a cancellation signal you must honor
   - **Five structural guardrails**: the write red-line in the registry (dangerous tools simply
     don't exist), central validation + `{ok:false, error:{code}, hint}` refusals, a quarantine
     fence for prompt injection in third-party text, idempotent submission with replay,
@@ -22,9 +22,10 @@
   - Human-approval gating, agent-flow details (orientation tool, next-step hints,
     ambiguity candidates), and testing recipes down to CI-grade evidence
 - **[`references/templates/`](./skills/webmcp-integration/references/templates/)** — four
-  framework-free TypeScript starting points (MIT): `model-context.ts` (dual entry point +
-  contract-fingerprint sync), `tool-wrapper.ts` (central guardrail layer + approval gate),
+  framework-free TypeScript starting points (MIT): `model-context.ts` (entry-point detection +
+  async contract-fingerprint sync), `tool-wrapper.ts` (central guardrail layer + approval gate),
   `validate.ts` (in-handler schema validation), `quarantine.ts` (untrusted-text fence).
+  Smoke tests: `node --test test/` (Node ≥ 23.6).
 
 ## Install
 
