@@ -4,6 +4,9 @@
  * schema is advertising; this is the actual check. Hand-rolled JSON-Schema subset
  * (type / properties / required / enum / min / max / minItems / items /
  * additionalProperties). Unknown keywords pass — a false rejection is worse than a miss.
+ * Key lookups are own-property only: `key in obj` would treat inherited names
+ * (constructor, toString, __proto__...) as declared and let them through.
+ * Omitted input is validated as {} (spec: omitted executeTool() input == empty object).
  * MIT.
  */
 
@@ -18,6 +21,7 @@ export function validateArgs(schema: Schema | undefined, args: unknown): SchemaP
 function check(schema: Schema, value: unknown, path: string): SchemaProblem[] {
   const problems: SchemaProblem[] = [];
   const at = path || "(root)";
+  const has = (o: object, k: string): boolean => Object.hasOwn(o, k);
   const type = schema["type"];
 
   if (type === "object") {
@@ -26,12 +30,12 @@ function check(schema: Schema, value: unknown, path: string): SchemaProblem[] {
     const obj = value as Record<string, unknown>;
     const props = (schema["properties"] ?? {}) as Record<string, Schema>;
     for (const key of (schema["required"] as string[] | undefined) ?? [])
-      if (obj[key] === undefined) problems.push({ path: `${path}${key}`, message: "is required" });
+      if (!has(obj, key) || obj[key] === undefined) problems.push({ path: `${path}${key}`, message: "is required" });
     if (schema["additionalProperties"] === false)
       for (const key of Object.keys(obj))
-        if (!(key in props)) problems.push({ path: `${path}${key}`, message: "is not a declared parameter" });
+        if (!has(props, key)) problems.push({ path: `${path}${key}`, message: "is not a declared parameter" });
     for (const [key, sub] of Object.entries(props))
-      if (obj[key] !== undefined) problems.push(...check(sub, obj[key], `${path}${key}.`).map(tidy));
+      if (has(obj, key) && obj[key] !== undefined) problems.push(...check(sub, obj[key], `${path}${key}.`).map(tidy));
     return problems;
   }
 
@@ -48,7 +52,7 @@ function check(schema: Schema, value: unknown, path: string): SchemaProblem[] {
   if (type === "string") {
     if (typeof value !== "string") return [{ path: at, message: "must be a string" }];
   } else if (type === "number" || type === "integer") {
-    if (typeof value !== "number" || Number.isNaN(value)) return [{ path: at, message: "must be a number" }];
+    if (typeof value !== "number" || !Number.isFinite(value)) return [{ path: at, message: "must be a finite number" }];
     if (type === "integer" && !Number.isInteger(value)) problems.push({ path: at, message: "must be an integer" });
     const min = schema["minimum"] as number | undefined;
     const xmin = schema["exclusiveMinimum"] as number | undefined;
